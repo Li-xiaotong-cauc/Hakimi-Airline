@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.hakimi.aviation.mapper.OrderMapper">
+
+    <update id="cancelUnpaidOrder">
+        UPDATE `ticket_order`
+        SET `status` = "CANCELED"
+        WHERE `id` = #{order_id}
+          AND `status` = "UNPAID"
+    </update>
+
+    <update id="updateStatusToPaid">
+        UPDATE `ticket_order`
+        SET
+            `status` = "PAID",
+            `pay_trade_no` = #{pay_trade_no}
+        WHERE `id` = #{order_id}
+        AND `status` = "UNPAID"
+    </update>
+
+    <select id="getOrderHistory" resultType="java.lang.Long">
+        SELECT `flight_id`
+        FROM `ticket_order`
+        WHERE `user_id` = #{user_id}
+        AND `status` IN ('UNPAID','PAID')
+    </select>
+
+    <select id="selectStatusByOrderId" resultType="java.lang.String">
+
+        SELECT `status`
+        FROM `ticket_order`
+        WHERE `id` = #{order_id}
+
+    </select>
+
+    <select id="selectSeatOffsetById" resultType="java.lang.Integer">
+
+        SELECT `seat_offset`
+        FROM `ticket_order`
+        WHERE `id` = #{order_id}
+
+    </select>
+
+</mapper>
