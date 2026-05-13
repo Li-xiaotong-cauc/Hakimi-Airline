@@ -10,7 +10,7 @@ import java.util.List;
 @Mapper
 public interface OrderMapper extends BaseMapper<TicketOrder> {
 
-    List<Long> getOrderHistory(@Param("user_id") Integer userId);
+    List<Long> getOrderHistory(@Param("user_id") Long userId);
 
     int cancelUnpaidOrder(@Param("order_id") Long orderId);
 

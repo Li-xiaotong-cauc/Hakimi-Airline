@@ -2,6 +2,9 @@ package com.hakimi.aviation.controller;
 
 import com.hakimi.aviation.alipay.AlipayCallbackUtil;
 import com.hakimi.aviation.common.JsonData;
+import com.hakimi.aviation.model.request.order.CancelOrderRequest;
+import com.hakimi.aviation.model.vo.CancelOrderVO;
+import com.hakimi.aviation.service.order.OrderService;
 import com.hakimi.aviation.service.order.PayService;
 import jakarta.annotation.Resource;
 import jakarta.servlet.http.HttpServletRequest;
@@ -20,6 +23,9 @@ public class OrderController {
 
     @Resource
     private AlipayCallbackUtil alipayCallbackUtil;
+
+    @Resource
+    private OrderService orderService;
 
 
     /**
@@ -86,6 +92,23 @@ public class OrderController {
 
         // 根据处理结果，给支付宝答复
         return result ? "success" : "failure";
+    }
+
+    /**
+     * 用户退款的接口 必须保障幂等性  只能对未进行支付的接口进行取消
+     * 此接口没有 @LoginOptional
+     * @param request DTO 只携带 订单号
+     * @param servletRequest HTTP 上下文
+     * @return 是否操作成功
+     */
+    @PostMapping("cancel")
+    public JsonData<CancelOrderVO> cancelOrder(@RequestBody CancelOrderRequest request, HttpServletRequest servletRequest){
+
+        Long userId = (Long) servletRequest.getAttribute("user_id");
+
+        CancelOrderVO cancelOrderVO = orderService.cancelOrder(request, userId);
+
+        return JsonData.buildSuccess(cancelOrderVO,"操作成功");
     }
 
 

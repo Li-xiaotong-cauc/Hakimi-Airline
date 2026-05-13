@@ -17,6 +17,6 @@ public class CancelOrderMessage {
 
     //航班 Id 和 用户 Id 都是用以定位 Redis 中的未支付记录 如果找不到未支付记录 此条消息会被丢弃
     private Long flightId;
-    private Integer userId;
+    private Long userId;
     private Integer seatOffset;
 }

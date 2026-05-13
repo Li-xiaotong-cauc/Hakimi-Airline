@@ -3,7 +3,6 @@ package com.hakimi.aviation.controller;
 import com.hakimi.aviation.annotations.LoginOptional;
 import com.hakimi.aviation.common.JsonData;
 import com.hakimi.aviation.entity.Flight;
-import com.hakimi.aviation.entity.TicketOrder;
 import com.hakimi.aviation.model.request.flight.BookingRequest;
 import com.hakimi.aviation.model.request.flight.FlightSearchRequest;
 import com.hakimi.aviation.model.vo.FlightSearchVO;
@@ -63,7 +62,7 @@ public class FlightController {
     public JsonData<TicketOrderVO> booking(@RequestBody BookingRequest request,HttpServletRequest servletRequest){
 
         //从 HTTP 请求里获取 JWT token 解析出用户数据 不信赖前端数据
-        Integer userId = (Integer) servletRequest.getAttribute("user_id");
+        Long userId = (Long) servletRequest.getAttribute("user_id");
         String userName = (String) servletRequest.getAttribute("name");
 
         TicketOrderVO ticketOrderVO = flightService.bookingFlight(request,userId,userName);

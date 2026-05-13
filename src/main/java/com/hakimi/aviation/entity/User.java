@@ -13,8 +13,8 @@ import java.util.Date;
 @AllArgsConstructor
 @TableName("user")
 public class User {
-    //用户唯一主键id，注册过程不使用异步落库，故id不采用雪花算法
-    private Integer id;
+
+    private Long id;
 
     //唯一索引，邮箱号
     private String email;

@@ -6,7 +6,7 @@ spring:
     name: aviation-system
 
   elasticsearch:
-    uris: http://${SERVER_IP}:9200
+    uris: http://127.0.0.1:19200    # 通过 SSH 将服务器 9200 端口与本机 19200 端口连接起来 防止网络代理对安全组策略的干扰
 
   datasource:
     url: jdbc:mysql://127.0.0.1:3306/hajimi_aviation?useUnicode=true&characterEncoding=utf-8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true

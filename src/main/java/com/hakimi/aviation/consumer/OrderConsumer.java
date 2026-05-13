@@ -5,7 +5,6 @@ import com.hakimi.aviation.entity.TicketOrder;
 import com.hakimi.aviation.mapper.OrderMapper;
 import com.hakimi.aviation.message.config.RabbitMQConfig;
 import com.hakimi.aviation.message.order.CancelOrderMessage;
-import com.hakimi.aviation.script.LuaScript;
 import com.rabbitmq.client.Channel;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
@@ -19,11 +18,9 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.messaging.handler.annotation.Header;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.io.IOException;
 import java.util.List;
-import java.util.Map;
 
 @Slf4j
 @Component
@@ -89,7 +86,7 @@ public class OrderConsumer {
             Message message,
             @Header(AmqpHeaders.DELIVERY_TAG) long deliveryTag) throws IOException {
 
-        Integer userId = cancelOrderMessage.getUserId();
+        Long userId = cancelOrderMessage.getUserId();
         Long flightId = cancelOrderMessage.getFlightId();
         Long orderId = cancelOrderMessage.getOrderId();
         Integer seatOffset = cancelOrderMessage.getSeatOffset();

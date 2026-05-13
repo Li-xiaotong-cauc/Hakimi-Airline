@@ -25,7 +25,7 @@ public class BookingAsyncService {
     private StringRedisTemplate stringRedisTemplate;
 
     @Async("bookingTaskExecutor")
-    public void postBookingTasks(TicketOrder ticketOrder, Long flightId, Integer userId, CancelOrderMessage cancelOrderMessage) {
+    public void postBookingTasks(TicketOrder ticketOrder, Long flightId, Long userId, CancelOrderMessage cancelOrderMessage) {
         //MQ 异步落库
         String routingKey = RabbitMQConfig.FLIGHT_BOOKING_BASE_ROUTING
                 + flightId + "." + userId;
@@ -53,6 +53,7 @@ public class BookingAsyncService {
         Integer seatOffset = ticketOrder.getSeatOffset();
 
         Map<String, String> orderData = new HashMap<>();
+        orderData.put("flightId",flightId.toString());
         orderData.put("total_amount", ticketOrder.getTotalPrice().toString());
         orderData.put("subject", "哈航机票预订 乘客 - " + ticketOrder.getPassengerName());
         //写入座位偏移量，方便支付回调方法修改数据库里航段实例的座位

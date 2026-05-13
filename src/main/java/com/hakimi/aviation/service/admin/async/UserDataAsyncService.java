@@ -22,7 +22,7 @@ public class UserDataAsyncService {
 
 
     @Async("bookingTaskExecutor")  //登录是低并发操作 复用之前的线程池即可
-    public void preheatUserOrder(Integer userId) {
+    public void preheatUserOrder(Long userId) {
 
         System.out.println("用户已登录 自动的异步加载行程记录到Redis");
 

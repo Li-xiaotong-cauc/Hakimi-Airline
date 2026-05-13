@@ -24,7 +24,6 @@ import com.hakimi.aviation.service.flight.FlightService;
 import com.hakimi.aviation.util.ValidateRequest;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.Resource;
-import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.BeanUtils;
@@ -341,7 +340,7 @@ public class FlightServiceImpl implements FlightService {
      * @return  VO 类
      */
     @Override
-    public TicketOrderVO bookingFlight(BookingRequest request,Integer userId,String userName) {
+    public TicketOrderVO bookingFlight(BookingRequest request, Long userId, String userName) {
 
         //请求需要先经过前置合法性校验
         ValidateRequest.ValidateBookingReq(request);
@@ -350,7 +349,8 @@ public class FlightServiceImpl implements FlightService {
 
 
         //首先检查 DTO 内用户Id是否和现在登录的用户Id相同
-        if(!userId.equals(request.getUserId().intValue())){
+        if(!userId.equals(request.getUserId())){
+            log.error("请求的用户 ID 与登录用户不一致");
             throw new BizException(BizCodeEnum.ILLEGAL_REQUEST);
         }
         //NOTE Lua 的参数 包含 两个检查项的 RedisKey
@@ -475,7 +475,7 @@ public class FlightServiceImpl implements FlightService {
         return parseToTicketOrderVO(ticketOrder);
     }
 
-    private TicketOrder parseToTicketOrder(Integer userId,String userName,Long flightId,BigDecimal totalPrice,Long seatOffset){
+    private TicketOrder parseToTicketOrder(Long userId, String userName, Long flightId, BigDecimal totalPrice, Long seatOffset){
 
         TicketOrder ticketOrder = new TicketOrder();
         //用 MP 自带的工具 使用雪花算法提前生成主键Id
