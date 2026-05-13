@@ -105,6 +105,10 @@ public class OrderServiceImpl implements OrderService {
                 String.valueOf(seatOffset)
         );
 
+        stringRedisTemplate.delete(
+                RedisKey.ORDER_SNAPSHOT_KEY + orderId
+        );
+
         return parseToCancelOrderVO(orderId);
     }
 
