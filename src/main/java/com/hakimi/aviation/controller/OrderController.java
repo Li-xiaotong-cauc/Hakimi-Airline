@@ -3,6 +3,8 @@ package com.hakimi.aviation.controller;
 import com.hakimi.aviation.alipay.AlipayCallbackUtil;
 import com.hakimi.aviation.common.JsonData;
 import com.hakimi.aviation.model.request.order.CancelOrderRequest;
+import com.hakimi.aviation.model.vo.CancelOrderVO;
+import com.hakimi.aviation.service.order.OrderService;
 import com.hakimi.aviation.service.order.PayService;
 import jakarta.annotation.Resource;
 import jakarta.servlet.http.HttpServletRequest;
@@ -21,6 +23,9 @@ public class OrderController {
 
     @Resource
     private AlipayCallbackUtil alipayCallbackUtil;
+
+    @Resource
+    private OrderService orderService;
 
 
     /**
@@ -97,11 +102,11 @@ public class OrderController {
      * @return 是否操作成功
      */
     @PostMapping("cancel")
-    public JsonData<String> cancelOrder(@RequestBody CancelOrderRequest request,HttpServletRequest servletRequest){
+    public JsonData<CancelOrderVO> cancelOrder(@RequestBody CancelOrderRequest request, HttpServletRequest servletRequest){
 
         Integer userId = (Integer) servletRequest.getAttribute("user_id");
 
-
+        CancelOrderVO cancelOrderVO = orderService.cancelOrder(request, userId);
 
         return null;
     }
