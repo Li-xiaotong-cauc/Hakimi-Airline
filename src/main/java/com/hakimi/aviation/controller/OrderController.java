@@ -104,11 +104,11 @@ public class OrderController {
     @PostMapping("cancel")
     public JsonData<CancelOrderVO> cancelOrder(@RequestBody CancelOrderRequest request, HttpServletRequest servletRequest){
 
-        Integer userId = (Integer) servletRequest.getAttribute("user_id");
+        Long userId = (Long) servletRequest.getAttribute("user_id");
 
         CancelOrderVO cancelOrderVO = orderService.cancelOrder(request, userId);
 
-        return null;
+        return JsonData.buildSuccess(cancelOrderVO,"操作成功");
     }
 
 

@@ -5,6 +5,6 @@ import com.hakimi.aviation.model.vo.CancelOrderVO;
 
 public interface OrderService {
 
-    CancelOrderVO cancelOrder(CancelOrderRequest request,Integer userId);
+    CancelOrderVO cancelOrder(CancelOrderRequest request, Long userId);
 
 }

@@ -79,6 +79,7 @@ public class ValidateRequest {
     public static void ValidateBookingReq(BookingRequest request){
         
         boolean isLegal = true;
+        log.info("开始前置校验预订机票请求合法性");
         
         if(request.getFlightId() == null || request.getFlightId() < 1){
             log.error("机票预订 - 无效请求 - 航班ID为空或非法");

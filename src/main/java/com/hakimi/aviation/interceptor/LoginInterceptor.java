@@ -96,7 +96,7 @@ public class LoginInterceptor implements HandlerInterceptor {
                     return false;
                 }
                 // 💡 查验通过！把 userId 郑重地塞进 request 里
-                Integer id = (Integer) claims.get("id");
+                Long id = (Long) claims.get("id");
                 String name = (String) claims.get("name");
                 String headImg = (String) claims.get("head_img");
                 request.setAttribute("user_id", id);
