@@ -9,9 +9,9 @@ public interface UserService {
     /**
      * 发送邮箱验证码的方法
      * @param request DTO 包含邮箱号
-     * @return 返回是否发送成功（1 OK）
+     * @return 会话令牌，注册时需回传以校验邮箱一致性
      */
-    int sendVerifyCode(SendCodeRequest request);
+    String sendVerifyCode(SendCodeRequest request);
 
     int register(RegisterRequest request);
 

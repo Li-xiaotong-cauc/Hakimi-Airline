@@ -38,13 +38,15 @@ public class UserController {
     }
 
     @PostMapping("send_code")
-    public JsonData<String> sendVerifyCode(@RequestBody SendCodeRequest request){
+    public JsonData<Map<String,String>> sendVerifyCode(@RequestBody SendCodeRequest request){
 
-        //验证邮箱和图形验证码是否正确
-        int success = userService.sendVerifyCode(request);
+        //验证邮箱和图形验证码是否正确，返回会话令牌供注册时校验邮箱一致性
+        String sessionToken = userService.sendVerifyCode(request);
 
-        //异常由 service 层抛出
-        return JsonData.buildSuccess("发送成功");
+        Map<String, String> data = new HashMap<>();
+        data.put("sessionToken", sessionToken);
+
+        return JsonData.buildSuccess(data, "验证码已发送至您的邮箱");
     }
 
     /**
