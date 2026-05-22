@@ -38,7 +38,7 @@ public class UserServiceImpl implements UserService{
     private UserDataAsyncService  userDataAsyncService;
 
     @Override
-    public int sendVerifyCode(SendCodeRequest request) {
+    public String sendVerifyCode(SendCodeRequest request) {
 
         String captchaKey = "captcha:" + request.getCaptchaKey();
 
@@ -87,11 +87,15 @@ public class UserServiceImpl implements UserService{
         //执行脚本
         Long result = stringRedisTemplate.execute(redisScript, keys, args);
 
+        //生成会话令牌，绑定本次验证码的接收邮箱，注册时做显式比对
+        String sessionToken = java.util.UUID.randomUUID().toString().replace("-", "");
+        String sessionKey = "verify:session:" + sessionToken;
+        stringRedisTemplate.opsForValue().set(sessionKey, request.getEmail(), 300, java.util.concurrent.TimeUnit.SECONDS);
+
         //用工具类 异步发送邮件 网络I/O不阻塞主线程
         emailUtil.sendHtmlVerificationCode(request.getEmail(),verifyCode);
 
-        //乐观返回1
-        return 1;
+        return sessionToken;
     }
 
     private boolean verifyPicCode(@NonNull SendCodeRequest request){
@@ -115,6 +119,18 @@ public class UserServiceImpl implements UserService{
      */
     @Override
     public int register(@NotNull RegisterRequest request) {
+
+        //校验 session 令牌：确保注册邮箱与接收验证码的邮箱一致
+        String sessionKey = "verify:session:" + request.getSessionToken();
+        String boundEmail = stringRedisTemplate.opsForValue().get(sessionKey);
+        if (boundEmail == null) {
+            throw new BizException(BizCodeEnum.VERIFY_SESSION_EXPIRED);
+        }
+        if (!boundEmail.equals(request.getEmail())) {
+            throw new BizException(BizCodeEnum.EMAIL_MISMATCH);
+        }
+        //校验通过后删除 session token，一次性使用
+        stringRedisTemplate.delete(sessionKey);
 
         //先验证邮箱验证码是否正确
         this.verifyEmailCode(request.getEmail(),request.getVerifyCode());
@@ -159,7 +175,7 @@ public class UserServiceImpl implements UserService{
         //得到查询结果
         Long result = stringRedisTemplate.execute(redisScript, Collections.singletonList(smsCodeKey), code);
         if(result == 0L){
-            //TODO 应该采用颗粒度更细的报告 如果用户中途换成另外的邮箱 应该报告不一致
+            //邮箱不一致的情况已在上层 register() 里通过 session token 显式校验
             throw new BizException(BizCodeEnum.VERIFY_CODE_ERROR);
         }
         //若没有抛出异常则说明验证通过
