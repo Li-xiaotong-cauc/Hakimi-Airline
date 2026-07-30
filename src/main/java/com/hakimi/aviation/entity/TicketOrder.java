@@ -24,6 +24,9 @@ public class TicketOrder {
     private Integer seatOffset;
 
     private BigDecimal totalPrice;
+
+    private String payTradeNo;
+
     //支付状态 默认为UNPAID
     private String status;
     //旅程是否已结束 用以保存历史记录

@@ -1,15 +1,22 @@
 package com.hakimi.aviation.service.order.impl;
 
 import com.hakimi.aviation.config.RedisKey;
+import com.hakimi.aviation.entity.Flight;
 import com.hakimi.aviation.entity.TicketOrder;
 import com.hakimi.aviation.enums.BizCodeEnum;
 import com.hakimi.aviation.exception.BizException;
+import com.hakimi.aviation.mapper.FlightMapper;
 import com.hakimi.aviation.mapper.OrderMapper;
+import com.hakimi.aviation.message.config.RabbitMQConfig;
+import com.hakimi.aviation.message.order.RefundMessage;
 import com.hakimi.aviation.model.request.order.CancelOrderRequest;
+import com.hakimi.aviation.model.request.order.RefundRequest;
 import com.hakimi.aviation.model.vo.CancelOrderVO;
+import com.hakimi.aviation.model.vo.OrderRefundVO;
 import com.hakimi.aviation.service.order.OrderService;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -17,6 +24,9 @@ import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -29,7 +39,13 @@ public class OrderServiceImpl implements OrderService {
     private StringRedisTemplate stringRedisTemplate;
 
     @Resource
+    private RabbitTemplate rabbitTemplate;
+
+    @Resource
     private OrderMapper orderMapper;
+
+    @Resource
+    private FlightMapper flightMapper;
 
     @Autowired
     @Qualifier("rollbackStockScript")
@@ -121,4 +137,100 @@ public class OrderServiceImpl implements OrderService {
         return cancelOrderVO;
     }
 
+    @Override
+    public OrderRefundVO refundOrder(RefundRequest request, Long userId) {
+
+        // DISCUSS 考虑是否可以加入分布式锁降低重复请求造成DB压力和异常率
+
+        Long orderId = request.getOrderId();
+
+        TicketOrder ticketOrder = orderMapper.selectById(orderId);
+
+        RefundMessage refundMessage = this.checkAndParse(ticketOrder);
+
+        int updateRow = orderMapper.updateStatusToRefunding(orderId, userId);
+
+        //订单状态的修改失败，可能是重复操作或者非当前用户机票/订单状态异常
+        if(updateRow != 1){
+            //TODO 抛出异常,终止此次请求
+            throw new BizException(BizCodeEnum.ORDER_REFUND_FAILED);
+        }
+
+        //发送消息
+        rabbitTemplate.convertAndSend(
+                RabbitMQConfig.REFUND_EXCHANGE,
+                RabbitMQConfig.REFUND_ROUTING_KEY,
+                refundMessage
+        );
+
+        // DISCUSS: 用户此时的订单还没有真正完成退款，考虑此处要不要及时删除缓存与DB中的用户行程，如果此处删除行程，若用户立马复购 且后续退款又失败，可能造成纠纷
+
+        //返回一个 VO
+        return OrderRefundVO.builder()
+                .orderId(orderId)
+                // 真实退款金额在 checkAndParse 里已经算好了，直接从 message 里拿
+                .expectedRefundAmount(refundMessage.getRefundAmount())
+                .status("REFUNDING")
+                .promptMessage("退款申请已受理！系统正在向支付宝发起退款，预计1-3个工作日内原路退回。")
+                .build();
+    }
+
+    /**
+     * 此方法用以校验 退款请求的合法性（订单状态、起飞时间），计算手续费的扣减，最后打包成退款需要的消息
+     * @param ticketOrder 查出的实体类
+     * @return 消费者需要的消息
+     */
+    private RefundMessage checkAndParse(TicketOrder ticketOrder){
+
+        if(!"PAID".equals(ticketOrder.getStatus())){
+            throw new BizException(BizCodeEnum.ORDER_CAN_NOT_REFUND);
+        }
+
+        RefundMessage message = new RefundMessage();
+
+        String redisKey = RedisKey.INFO_FLIGHT + ticketOrder.getFlightId();
+
+        // Redis 序列化与日期解析
+        String flightDateStr = (String) stringRedisTemplate.opsForHash().get(redisKey, "flight_date");
+        LocalDate flightDate;
+
+        if (flightDateStr != null) {
+            flightDate = LocalDate.parse(flightDateStr);
+        } else {
+            // 缓存击穿兜底
+            Flight flight = flightMapper.selectById(ticketOrder.getFlightId());
+            if (flight == null) {
+                throw new BizException(BizCodeEnum.FLIGHT_INFO_MISS_REFUND_FAILED);
+            }
+            flightDate = flight.getFlightDate();
+            // TODO: 把查出来的日期写回 Redis，修复缓存
+        }
+
+        message.setOrderId(ticketOrder.getId());
+        message.setUserId(ticketOrder.getUserId());
+        message.setPayTradeNo(ticketOrder.getPayTradeNo());
+        message.setOutRequestNo("REFUND_" + ticketOrder.getPayTradeNo());
+        message.setFlightId(ticketOrder.getFlightId());
+        message.setTicketCount(1);
+        message.setSeatOffset(ticketOrder.getSeatOffset());
+
+
+        //TODO 这里简单的按三天内扣减百分之二十计算，后续可以细化
+        BigDecimal totalPrice = ticketOrder.getTotalPrice();
+
+        // 如果当前时间 + 3天 已经超过了起飞日期，说明距离起飞不足3天了
+        if (LocalDate.now().plusDays(3).isAfter(flightDate)) {
+            // 扣除 20% 手续费
+            // 使用 BigDecimal 保证财务级精度，防止出现无限小数报错，保留两位小数，向下取整
+            BigDecimal refundAmount = totalPrice.multiply(new BigDecimal("0.8"))
+                    .setScale(2, RoundingMode.DOWN);
+            message.setRefundAmount(refundAmount);
+        } else {
+            // 全额退款
+            message.setRefundAmount(totalPrice);
+        }
+
+        return message;
+
+    }
 }
