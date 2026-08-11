@@ -26,4 +26,7 @@ public class RedisKey {
     //航段实例所持有的座位的 BitMap 位图的 Key 后面需要拼接上 SegmentInstanceId
     public static final String SEGMENT_SEAT_BIT_MAP_KEY = "seatmap:seg:";
 
+    //退款的分布式锁，key 的后面需要拼接上 此次退款订单的唯一主键 orderId
+    public static final String REFUND_LOCK = "lock:refund:";
+
 }

@@ -40,7 +40,12 @@ end
 -- 从“行程防重 Set”中移除该航班，让用户可以重新购买
 redis.call('srem', notFinishKey, flightId)
 
--- 从“未支付 Set”中移除该订单
-redis.call('srem', unpaidKey, orderId)
+-- 从“未支付 Set”中移除该订单,如果没有传入 unpaidKey 说明此次业务无需删除未支付的记录
+if unpaidKey then
+
+    redis.call('srem', unpaidKey, orderId)
+
+end
+
 
 return 1

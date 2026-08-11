@@ -18,6 +18,28 @@
         AND `status` = "UNPAID"
     </update>
 
+    <update id="updateStatusToRefunding">
+
+        UPDATE `ticket_order`
+        SET
+            `status` = "REFUNDING"
+        WHERE `id` = #{order_id}
+        AND `user_id` = #{user_id}
+        AND `status` = "PAID"
+
+    </update>
+
+    <update id="updateStatusToRefunded">
+
+        UPDATE `ticket_order`
+        SET
+            `status` = "REFUNDED"
+        WHERE `id` = #{order_id}
+          AND `user_id` = #{user_id}
+          AND `status` = "REFUNDING"
+
+    </update>
+
     <select id="getOrderHistory" resultType="java.lang.Long">
         SELECT `flight_id`
         FROM `ticket_order`

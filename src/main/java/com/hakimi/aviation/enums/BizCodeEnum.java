@@ -27,6 +27,11 @@ public enum BizCodeEnum {
     TICKET_SOLD_OUT(302,"机票已售罄"),
     FLIGHT_ERROR(303,"航班已下架或数据未就绪，请稍后重试"),
     ORDER_MISS_OR_EXPIRED(304,"您的订单不存在或已经超时"),
+    ORDER_REFUND_FAILED(305,"退款失败，可能是重复请求或无效的退款请求，请联系客服"),
+    ORDER_CAN_NOT_REFUND(306,"当前订单不允许退款：状态异常"),
+    FLIGHT_INFO_MISS_REFUND_FAILED(307,"航班信息异常，退款失败"),
+    REFUND_INTERNAL_FAILED(308,"第三方网关退款失败，请联系客服"),
+    FINAL_REFUND_UPDATE_FAILED(309,"订单状态更新失败，请查看订单退款情况，如有异常请联系客服"),
     ILLEGAL_SEGMENT_SET(401,"航段配置非法");
 
 

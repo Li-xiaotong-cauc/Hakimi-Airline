@@ -3,7 +3,9 @@ package com.hakimi.aviation.controller;
 import com.hakimi.aviation.alipay.AlipayCallbackUtil;
 import com.hakimi.aviation.common.JsonData;
 import com.hakimi.aviation.model.request.order.CancelOrderRequest;
+import com.hakimi.aviation.model.request.order.RefundRequest;
 import com.hakimi.aviation.model.vo.CancelOrderVO;
+import com.hakimi.aviation.model.vo.OrderRefundVO;
 import com.hakimi.aviation.service.order.OrderService;
 import com.hakimi.aviation.service.order.PayService;
 import jakarta.annotation.Resource;
@@ -95,7 +97,7 @@ public class OrderController {
     }
 
     /**
-     * 用户退款的接口 必须保障幂等性  只能对未进行支付的接口进行取消
+     * 用户取消订单的接口 必须保障幂等性  只能对未进行支付的接口进行取消
      * 此接口没有 @LoginOptional
      * @param request DTO 只携带 订单号
      * @param servletRequest HTTP 上下文
@@ -111,6 +113,21 @@ public class OrderController {
         return JsonData.buildSuccess(cancelOrderVO,"操作成功");
     }
 
+    /**
+     * 用户进行退款的接口，只能对已经支付过的接口进行，需要调用三方接口进行退款
+     * 退款时需要结合当前与起飞的时间，决定是否扣除手续费/扣除多少
+     * @return 退款成功的通知，应另起一个 VO 类用作展示
+     */
+    @PostMapping("refund")
+    public JsonData<OrderRefundVO> refundOrder(@RequestBody RefundRequest request, HttpServletRequest servletRequest){
 
+
+        Long userId = (Long) servletRequest.getAttribute("user_id");
+
+        //TODO 调用 service 方法，发送消息，最后返回一个友好的提示消息 包装 VO
+        OrderRefundVO orderRefundVO = orderService.refundOrder(request, userId);
+
+        return JsonData.buildSuccess(orderRefundVO,"操作成功");
+    }
 
 }

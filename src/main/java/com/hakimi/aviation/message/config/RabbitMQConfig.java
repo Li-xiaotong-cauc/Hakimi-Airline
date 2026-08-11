@@ -92,4 +92,31 @@ public class RabbitMQConfig {
         return BindingBuilder.bind(queue).to(exchange).with(ORDER_CANCEL_BINDING);
     }
 
+    //==== 负责接收退款消息的组件 =======
+
+    // 交换机名称
+    public static final String REFUND_EXCHANGE = "refund.direct.exchange";
+    // 队列名称
+    public static final String REFUND_QUEUE = "refund.execute.queue";
+    // 路由键名称
+    public static final String REFUND_ROUTING_KEY = "refund.execute";
+
+    @Bean("refundQueue")
+    public Queue refundQueue(){
+        return QueueBuilder.durable(REFUND_QUEUE).build();
+    }
+
+    @Bean("refundDirectExchange")
+    public DirectExchange refundDirectExchange(){
+        return ExchangeBuilder.directExchange(REFUND_EXCHANGE).build();
+    }
+
+    public Binding refundBinding(
+            @Qualifier("refundQueue") Queue queue,
+            @Qualifier("refundDirectExchange") DirectExchange directExchange
+    ){
+        return BindingBuilder.bind(queue).to(directExchange).with(REFUND_ROUTING_KEY);
+    }
+
+
 }
