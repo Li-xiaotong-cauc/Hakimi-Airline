@@ -160,7 +160,7 @@ public class PayServiceImpl implements PayService {
 
         if(removeSuccess == null || removeSuccess == 0){
             //NOTE 如果删除失败（已被删除）或者为空（异常） 则此次回调已经失败（可能订单被取消或者是重复回调） 需要判断是否需要退款
-            // 必须降级检查数据库订单状态是否为 "CANCELED" 如果付款后因为订单过期而造成库存回滚 则必须退款
+            // 必须降级检查数据库订单状态是否为 "CANCELLED" 如果付款后因为订单过期而造成库存回滚 则必须退款
             // 这里还是要经过数据库乐观更新 确定是否应该退款
 
 

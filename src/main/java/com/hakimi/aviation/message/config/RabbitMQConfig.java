@@ -111,6 +111,7 @@ public class RabbitMQConfig {
         return ExchangeBuilder.directExchange(REFUND_EXCHANGE).build();
     }
 
+    @Bean("refundBinding")
     public Binding refundBinding(
             @Qualifier("refundQueue") Queue queue,
             @Qualifier("refundDirectExchange") DirectExchange directExchange

@@ -22,10 +22,10 @@ public class AlipayProcess{
 
         AlipayTradeRefundRequest request = new AlipayTradeRefundRequest();
         JSONObject bizContent = new JSONObject();
-        // 必填：哈航的原始订单号（或者支付宝的交易流水号 trade_no，二选一）
-        bizContent.put("out_trade_no", ticketOrder.getId().toString());
-        // 必填：退款金额（不能大于订单总金额）
-        bizContent.put("refund_amount", ticketOrder.getTotalPrice());
+        // 必填：哈航的原始订单号，必须与支付时一致（"Hakimi-" 前缀），否则支付宝会报"交易不存在"
+        bizContent.put("out_trade_no", "Hakimi-" + ticketOrder.getId());
+        // 必填：退款金额（不能大于订单总金额），支付宝要求字符串格式
+        bizContent.put("refund_amount", ticketOrder.getTotalPrice().toString());
         // 选填但强烈建议填：退款原因
         bizContent.put("refund_reason", "订单超时，座位已释放，自动退款");
 
