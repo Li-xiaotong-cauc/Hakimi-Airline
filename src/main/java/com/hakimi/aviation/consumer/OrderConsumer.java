@@ -134,7 +134,7 @@ public class OrderConsumer {
             }
 
             //NOTE 到这里 可能是正常取消，也可能是异常重试，需要数据库乐观更新
-            //乐观更新数据库 将数据库中的订单状态修改为“CANCELED” 这里只对status为 “UNPAID”的订单进行修改 避免将正常订单取消
+            //乐观更新数据库 将数据库中的订单状态修改为“CANCELLED” 这里只对status为 “UNPAID”的订单进行修改 避免将正常订单取消
             int updatedRows = orderMapper.cancelUnpaidOrder(orderId);
             if(updatedRows == 0 && !isRedelivered){
                 //受影响的行数为0且非重试的消息 说明这是一条重复的消息 确认消费后直接丢弃即可

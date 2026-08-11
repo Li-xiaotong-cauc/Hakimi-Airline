@@ -156,16 +156,23 @@ public class OrderServiceImpl implements OrderService {
 
         //订单状态的修改失败，可能是重复操作或者非当前用户机票/订单状态异常
         if(updateRow != 1){
-            //TODO 抛出异常,终止此次请求
+            //抛出异常,终止此次请求
             throw new BizException(BizCodeEnum.ORDER_REFUND_FAILED);
         }
 
-        //发送消息
-        rabbitTemplate.convertAndSend(
-                RabbitMQConfig.REFUND_EXCHANGE,
-                RabbitMQConfig.REFUND_ROUTING_KEY,
-                refundMessage
-        );
+        //发送消息：状态已提交为 REFUNDING 后再发，保证消费者能读到最新状态。
+        //若发送失败（如 MQ 宕机），补偿性地把状态回滚到 PAID，避免订单卡死在 REFUNDING 且用户无法重试。
+        try {
+            rabbitTemplate.convertAndSend(
+                    RabbitMQConfig.REFUND_EXCHANGE,
+                    RabbitMQConfig.REFUND_ROUTING_KEY,
+                    refundMessage
+            );
+        } catch (Exception e) {
+            log.error("退款消息发送失败，回滚订单 {} 状态至 PAID", orderId, e);
+            orderMapper.revertRefundingToPaid(orderId, userId);
+            throw new BizException(BizCodeEnum.ORDER_REFUND_FAILED);
+        }
 
         // DISCUSS: 用户此时的订单还没有真正完成退款，考虑此处要不要及时删除缓存与DB中的用户行程，如果此处删除行程，若用户立马复购 且后续退款又失败，可能造成纠纷
 

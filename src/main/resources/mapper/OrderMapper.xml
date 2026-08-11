@@ -4,7 +4,7 @@
 
     <update id="cancelUnpaidOrder">
         UPDATE `ticket_order`
-        SET `status` = "CANCELED"
+        SET `status` = "CANCELLED"
         WHERE `id` = #{order_id}
           AND `status` = "UNPAID"
     </update>
@@ -34,6 +34,17 @@
         UPDATE `ticket_order`
         SET
             `status` = "REFUNDED"
+        WHERE `id` = #{order_id}
+          AND `user_id` = #{user_id}
+          AND `status` = "REFUNDING"
+
+    </update>
+
+    <update id="revertRefundingToPaid">
+
+        UPDATE `ticket_order`
+        SET
+            `status` = "PAID"
         WHERE `id` = #{order_id}
           AND `user_id` = #{user_id}
           AND `status` = "REFUNDING"

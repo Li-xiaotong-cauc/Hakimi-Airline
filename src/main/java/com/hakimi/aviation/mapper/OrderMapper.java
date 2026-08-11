@@ -20,6 +20,9 @@ public interface OrderMapper extends BaseMapper<TicketOrder> {
 
     int updateStatusToRefunded(@Param("order_id") Long orderId,@Param("user_id") Long userId);
 
+    //退款消息发送失败时的补偿：将 REFUNDING 回滚为 PAID，允许用户重试
+    int revertRefundingToPaid(@Param("order_id") Long orderId,@Param("user_id") Long userId);
+
     String selectStatusByOrderId(@Param("order_id") Long orderId);
 
     Integer selectSeatOffsetById(@Param("order_id") Long orderId);

@@ -501,6 +501,7 @@ public class FlightServiceImpl implements FlightService {
 
         TicketOrderVO ticketOrderVO = new TicketOrderVO();
 
+        ticketOrderVO.setOrderId(ticketOrder.getId());
         ticketOrderVO.setOrderNo(ticketOrder.getOrderNo());
         ticketOrderVO.setFlightId(ticketOrder.getFlightId());
         ticketOrderVO.setPassengerName(ticketOrder.getPassengerName());
