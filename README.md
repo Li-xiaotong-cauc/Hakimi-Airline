@@ -406,104 +406,21 @@ sequenceDiagram
 
 ## 📡 API 接口文档
 
-- **Base URL**：`/api/v1`
-- **数据格式**：`application/json`
-- **统一响应体**：
-  ```json
-  { "code": 200, "data": {}, "msg": "提示信息", "timestamp": 1700000000000 }
-  ```
-- **鉴权**：需登录接口在 Header 传递 `token: hajimi{your_jwt_token}`；`/api/v1/pri/**` 默认拦截，仅放行登录、注册、验证码、发送验证码与支付回调。
+接口契约（全部端点、请求/响应字段、VO 结构、错误码、支付与 WebSocket 流程）以根目录 **[`APIs.md`](./APIs.md)** 为**唯一权威来源**。
 
-> 完整字段与示例请见根目录 [`APIs.md`](./APIs.md)。
+- **Base URL**：`http://<host>:8080`
+- **统一响应体**：`{ code, data, msg, timestamp }`，成功恒为 `code === 200`
+- **鉴权**：需登录接口在 Header 传 `token: hajimi....`（登录返回值原样放入）
 
-### 用户模块
-
-| 方法 | 路径 | 鉴权 | 说明 |
-|-----|------|------|------|
-| `GET` | `/api/v1/pri/user/captcha` | 否 | 获取图形验证码（UUID + Base64） |
-| `POST` | `/api/v1/pri/user/send_code` | 否 | 发送邮箱验证码 |
-| `POST` | `/api/v1/pri/user/register` | 否 | 用户注册 |
-| `POST` | `/api/v1/pri/user/login` | 否 | 用户登录，返回 JWT |
-
-### 航班模块
-
-| 方法 | 路径 | 鉴权 | 说明 |
-|-----|------|------|------|
-| `POST` | `/api/v1/pri/flight/search` | 可选 | ES + Redis 高性能搜索（含实时库存） |
-| `POST` | `/api/v1/pri/flight/search_flight` | 可选 | 数据库降级搜索（兜底） |
-| `POST` | `/api/v1/pri/flight/booking` | 是 | 核心抢票预订 |
-
-### 订单与支付模块
-
-| 方法 | 路径 | 鉴权 | 说明 |
-|-----|------|------|------|
-| `POST` | `/api/v1/pri/order/pay` | 是 | 发起支付，返回支付宝表单 HTML |
-| `POST` | `/api/v1/pri/order/pay/callback` | 否 | 支付宝异步回调（仅支付宝调用） |
-| `POST` | `/api/v1/pri/order/cancel` | 是 | 用户主动取消未支付订单 |
-
-### B 端 / 运维模块
-
-| 方法 | 路径 | 说明 |
-|-----|------|------|
-| `GET` | `/dev/init?days=1` | 手动生成指定日期的航班数据 |
-| `GET` | `/dev/flight/sync` | 同步数据库航班到 Redis 与 ES |
-| `POST` | `/dev/flight/new` | 创建新航班 |
-
-### 请求示例：抢票预订
-
-```http
-POST /api/v1/pri/flight/booking
-token: hajimi{your_jwt_token}
-Content-Type: application/json
-
-{
-  "flightId": 888,
-  "userId": 1001,
-  "seatPrefer": "window"
-}
-```
-
-```json
-{
-  "code": 200,
-  "msg": "预订成功，请在15分钟内完成支付",
-  "data": {
-    "orderNo": "Hakimi-1715000012345",
-    "flightId": 888,
-    "totalPrice": 1200.00,
-    "exactSeat": "12A",
-    "status": "UNPAID"
-  }
-}
-```
+> 📌 新增或变更接口时**只更新 `APIs.md`**，本文件不再维护接口明细，避免两处失步。
 
 ---
 
 ## 📋 业务状态码（BizCodeEnum）
 
-| 区间 | 归属 |
-|-----|------|
-| `< 10` | 通用码 |
-| `201-299` | 用户模块 |
-| `301-399` | 航班 / 交易模块 |
-| `401-499` | B 端模块 |
+业务码分区：`<10` 通用 · `201-299` 用户 · `301-399` 航班/交易 · `401-499` B 端。成功恒为 `code = 200`。
 
-| Code | 含义 |
-|------|------|
-| `0` | 操作成功 |
-| `1` | 服务繁忙，请稍后再试 |
-| `2` | 验证码发送过于频繁 |
-| `4` | 非法请求，缺少必需属性 |
-| `202` | 图形验证码错误或已过期 |
-| `204` | 邮箱验证码错误或已过期 |
-| `206` | 邮箱或密码错误 |
-| `301` | 已购买过此航班 |
-| `302` | 机票已售罄 |
-| `303` | 航班已下架或数据未就绪 |
-| `304` | 订单不存在或已超时 |
-| `401` | 航段配置非法 |
-
-> 注：`JsonData` 成功响应统一返回 `code = 200`；上表为业务异常语义码。
+> 完整错误码对照表见 **[`APIs.md` §1.4 全局错误码表](./APIs.md)**。
 
 ---
 
