@@ -14,7 +14,9 @@ import com.hakimi.aviation.model.request.order.CancelOrderRequest;
 import com.hakimi.aviation.model.request.order.RefundRequest;
 import com.hakimi.aviation.model.vo.CancelOrderVO;
 import com.hakimi.aviation.model.vo.OrderRefundVO;
+import com.hakimi.aviation.model.vo.OrderVO;
 import com.hakimi.aviation.service.order.OrderService;
+import com.hakimi.aviation.util.SeatUtil;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
@@ -261,5 +263,24 @@ public class OrderServiceImpl implements OrderService {
         // NOTE 正常执行库存回滚
         segmentInstanceMapper.rollbackStockByFlightId(flightId, ticketCount);
 
+    }
+
+    @Override
+    public List<OrderVO> listOrders(Long userId, String status) {
+        List<OrderVO> orders = orderMapper.listOrdersByUser(userId, status);
+        //根据座位偏移量补充可读的座位号
+        orders.forEach(o -> o.setExactSeat(SeatUtil.toSeatNo(o.getSeatOffset())));
+        return orders;
+    }
+
+    @Override
+    public OrderVO getOrderDetail(Long orderId, Long userId) {
+        OrderVO order = orderMapper.getOrderDetail(orderId, userId);
+        if (order == null) {
+            //查不到（不存在或非本人），统一按"订单不存在"处理，避免泄露他人订单
+            throw new BizException(BizCodeEnum.ORDER_MISS_OR_EXPIRED);
+        }
+        order.setExactSeat(SeatUtil.toSeatNo(order.getSeatOffset()));
+        return order;
     }
 }

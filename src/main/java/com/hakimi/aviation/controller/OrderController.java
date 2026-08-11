@@ -6,6 +6,7 @@ import com.hakimi.aviation.model.request.order.CancelOrderRequest;
 import com.hakimi.aviation.model.request.order.RefundRequest;
 import com.hakimi.aviation.model.vo.CancelOrderVO;
 import com.hakimi.aviation.model.vo.OrderRefundVO;
+import com.hakimi.aviation.model.vo.OrderVO;
 import com.hakimi.aviation.service.order.OrderService;
 import com.hakimi.aviation.service.order.PayService;
 import jakarta.annotation.Resource;
@@ -13,6 +14,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.Map;
 
 @Slf4j
@@ -128,6 +130,38 @@ public class OrderController {
         OrderRefundVO orderRefundVO = orderService.refundOrder(request, userId);
 
         return JsonData.buildSuccess(orderRefundVO,"操作成功");
+    }
+
+    /**
+     * 我的订单列表 需登录 userId 从 JWT 取
+     * @param status 可选 订单状态筛选（UNPAID/PAID/CANCELLED/REFUNDING/REFUNDED），不传则查全部
+     * @return 订单列表（含航班展示信息与座位号），按下单时间倒序
+     */
+    @GetMapping("list")
+    public JsonData<List<OrderVO>> listOrders(@RequestParam(value = "status", required = false) String status,
+                                              HttpServletRequest servletRequest){
+
+        Long userId = (Long) servletRequest.getAttribute("user_id");
+
+        List<OrderVO> orders = orderService.listOrders(userId, status);
+
+        return JsonData.buildSuccess(orders, "查询成功");
+    }
+
+    /**
+     * 订单详情 需登录 且只能查本人订单 常用于支付/退款后轮询最新状态
+     * @param orderId 订单主键ID
+     * @return 单个订单详情
+     */
+    @GetMapping("detail")
+    public JsonData<OrderVO> orderDetail(@RequestParam("order_id") Long orderId,
+                                         HttpServletRequest servletRequest){
+
+        Long userId = (Long) servletRequest.getAttribute("user_id");
+
+        OrderVO order = orderService.getOrderDetail(orderId, userId);
+
+        return JsonData.buildSuccess(order, "查询成功");
     }
 
 }
