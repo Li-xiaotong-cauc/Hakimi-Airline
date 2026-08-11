@@ -11,4 +11,6 @@ public interface OrderService {
 
     OrderRefundVO refundOrder(RefundRequest request, Long userId);
 
+    void finishRefund(Long orderId, Long userId, Long flightId, int ticketCount);
+
 }

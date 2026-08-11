@@ -7,6 +7,7 @@ import com.hakimi.aviation.enums.BizCodeEnum;
 import com.hakimi.aviation.exception.BizException;
 import com.hakimi.aviation.mapper.FlightMapper;
 import com.hakimi.aviation.mapper.OrderMapper;
+import com.hakimi.aviation.mapper.SegmentInstanceMapper;
 import com.hakimi.aviation.message.config.RabbitMQConfig;
 import com.hakimi.aviation.message.order.RefundMessage;
 import com.hakimi.aviation.model.request.order.CancelOrderRequest;
@@ -46,6 +47,9 @@ public class OrderServiceImpl implements OrderService {
 
     @Resource
     private FlightMapper flightMapper;
+
+    @Resource
+    private SegmentInstanceMapper segmentInstanceMapper;
 
     @Autowired
     @Qualifier("rollbackStockScript")
@@ -231,6 +235,24 @@ public class OrderServiceImpl implements OrderService {
         }
 
         return message;
+
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void finishRefund(Long orderId, Long userId, Long flightId, int ticketCount) {
+
+        // 修改数据库订单状态: REFUNDING -> REFUNDED
+        int updateRows = orderMapper.updateStatusToRefunded(orderId, userId);
+        if(updateRows != 1){
+            // DISCUSS 这一步按理是不会触发的？
+            log.warn("订单 {} 已处理或状态异常，操作失败", orderId);
+            // DISCUSS 如果真的到了这一步，抛出异常会让事务回滚
+            throw new BizException(BizCodeEnum.FINAL_REFUND_UPDATE_FAILED);
+        }
+
+        // NOTE 正常执行库存回滚
+        segmentInstanceMapper.rollbackStockByFlightId(flightId, ticketCount);
 
     }
 }

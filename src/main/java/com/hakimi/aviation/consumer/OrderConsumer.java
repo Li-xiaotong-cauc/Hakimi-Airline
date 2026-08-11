@@ -1,10 +1,20 @@
 package com.hakimi.aviation.consumer;
 
+import com.alibaba.fastjson.JSONObject;
+import com.alipay.api.AlipayClient;
+import com.alipay.api.request.AlipayTradeRefundRequest;
+import com.alipay.api.response.AlipayTradeRefundResponse;
+import com.hakimi.aviation.component.notification.NotificationWebSocketServer;
 import com.hakimi.aviation.config.RedisKey;
 import com.hakimi.aviation.entity.TicketOrder;
+import com.hakimi.aviation.enums.BizCodeEnum;
+import com.hakimi.aviation.exception.BizException;
 import com.hakimi.aviation.mapper.OrderMapper;
+import com.hakimi.aviation.mapper.SegmentInstanceMapper;
 import com.hakimi.aviation.message.config.RabbitMQConfig;
 import com.hakimi.aviation.message.order.CancelOrderMessage;
+import com.hakimi.aviation.message.order.RefundMessage;
+import com.hakimi.aviation.service.order.OrderService;
 import com.rabbitmq.client.Channel;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
@@ -18,9 +28,12 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.messaging.handler.annotation.Header;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Queue;
+import java.util.concurrent.TimeUnit;
 
 @Slf4j
 @Component
@@ -31,6 +44,15 @@ public class OrderConsumer {
 
     @Resource
     private StringRedisTemplate stringRedisTemplate;
+
+    @Resource
+    private AlipayClient alipayClient;
+
+    @Resource
+    private OrderService orderService;
+
+    @Resource
+    private NotificationWebSocketServer notificationWebSocketServer;
 
     @Autowired
     @Qualifier("rollbackStockScript")
@@ -141,6 +163,148 @@ public class OrderConsumer {
         }catch(Exception e){
             log.error(">>> 订单 {} 超时取消处理异常，重新入队等待重试: {}", orderId, e.getMessage());
             // 遇到数据库宕机等异常，NACK 并重试
+            channel.basicNack(deliveryTag, false, true);
+        }
+
+    }
+
+    /**
+     * 用以处理退款消息的消费者，避免长事务，故消费者不加事务注解
+     * @param message 退款的消息体
+     * @param channel 通道
+     * @param deliveryTag   上下文
+     * @throws IOException  抛出的异常 （受检）
+     */
+    @RabbitListener(queues = RabbitMQConfig.REFUND_QUEUE)
+    public void handlerOrderRefundMessage(
+        RefundMessage message,
+        Channel channel,
+        @Header(AmqpHeaders.DELIVERY_TAG) long deliveryTag
+    ) throws IOException {
+
+        log.info("📥 接收到退款执行消息, orderId: {}, deliveryTag: {}", message.getOrderId(), deliveryTag);
+
+        try {
+            // ==========================================
+            // 核心业务区
+            // 1. 幂等性校验（查库判断是否已经退过款了）
+            // 2. 调用第三方支付平台（支付宝/微信）API 进行实际退款
+            // 3. 退款成功后：修改数据库订单状态为 REFUNDED
+            // 4. 回滚航班座位库存
+            // 5. 物理/逻辑删除用户的行程记录
+            // ==========================================
+
+            // NOTE: 具体的退款调用和本地事务处理
+
+            // 业务全部执行成功，手动向 Broker 发送 ACK 确认
+            // 第二个参数 false 代表不批量确认，只确认当前这一条
+
+
+            // NOTE 向Redis中 SETNX 插入分布式锁防止重复消费
+            Boolean trySetLock = stringRedisTemplate.opsForValue().setIfAbsent(RedisKey.REFUND_LOCK + message.getOrderId(),
+                    "Locked",
+                    10,
+                    TimeUnit.MINUTES);
+
+            if (Boolean.FALSE.equals(trySetLock)){
+                //被分布式锁拦住，此为重复消费
+                log.warn("订单 {} 正在退款中，触发 Redis 拦截，忽略重复消息", message.getOrderId());
+                channel.basicAck(deliveryTag, false);
+                return;
+            }
+
+            // NOTE 通过分布式锁,进入下一阶段
+            try{
+                // 修改订单状态，同时做兜底的幂等性校验
+                TicketOrder ticketOrder = orderMapper.selectById(message.getOrderId());
+                if(ticketOrder == null || !"REFUNDING".equals(ticketOrder.getStatus())){
+
+                    log.warn("订单 {} 状态已被处理 (当前状态: {})，触发数据库兜底幂等，直接 ACK",
+                            message.getOrderId(), ticketOrder != null ? ticketOrder.getStatus() : "null");
+                    channel.basicAck(deliveryTag, false);
+                    return;
+                }
+                // NOTE 通过校验，开始退款
+                // NOTE 调用支付宝第三方接口进行退款 （天然幂等）
+                AlipayTradeRefundRequest alipayRequest = new AlipayTradeRefundRequest();
+
+                // 组装业务参数 (推荐使用 fastjson 或者 Jackson 的 ObjectNode)
+                JSONObject bizContent = new JSONObject();
+                bizContent.put("out_trade_no", message.getPayTradeNo());
+                bizContent.put("refund_amount", message.getRefundAmount().toString());
+                bizContent.put("out_request_no", message.getOutRequestNo());
+                // 可选：退款原因
+                bizContent.put("refund_reason", "用户主动发起退票");
+
+                alipayRequest.setBizContent(bizContent.toString());
+
+                AlipayTradeRefundResponse response = alipayClient.execute(alipayRequest);
+
+                if (response.isSuccess()) {
+                    log.info("💰 支付宝网关退款成功！流水号: {}", message.getPayTradeNo());
+
+                    // ==========================================
+                    // 退款成功后的收尾工作（真正的终态扭转）
+                    // ==========================================
+                    // NOTE 用短事务先完成订单状态的修改和数据库库存的回滚
+                    orderService.finishRefund(message.getOrderId(),
+                            message.getUserId(),
+                            message.getFlightId(),
+                            1);
+
+                    // NOTE 一切正常，到达最后的回滚和行程记录删除阶段
+
+
+                    // 回滚真实库存（MySQL）与高并发库存（Redis Lua脚本）
+                    // NOTE Redis 库存的回滚需要放在最后进行，防止超卖
+                    Long rollbackResult = stringRedisTemplate.execute(
+                            rollbackScript,
+                            List.of(
+                                    RedisKey.ROUTE_FLIGHT + message.getFlightId(),      // KEYS[1]
+                                    RedisKey.ORDER_NOT_FINISH_KEY + message.getUserId()// KEYS[2]
+                                                                  // 不传 KEYS[3] 表示不用删除未支付记录
+                            ),
+                            String.valueOf(message.getOrderId()),                   // ARGV[1]: 订单ID，用于清理未支付Set
+                            String.valueOf(message.getFlightId()),                  // ARGV[2]: 航班ID，用于清理行程防重Set
+                            "1",                                        // ARGV[3]: 退回的票数，传字符串 "1"
+                            String.valueOf(message.getSeatOffset())
+                    );
+                    // NOTE 物理/逻辑删除用户的行程记录 已经由 Lua 脚本完成
+
+
+                    // NOTE 通知用户
+                    // 组装一个 JSON 格式的消息告诉前端这是什么类型的通知
+                    JSONObject notifyJson = new JSONObject();
+                    notifyJson.put("type", "REFUND_SUCCESS");
+                    notifyJson.put("orderId", message.getOrderId());
+                    notifyJson.put("content", "您的订单已退款成功，金额已原路返回。");
+
+                    notificationWebSocketServer.sendMessage(message.getUserId(), notifyJson.toString());
+
+                } else {
+                    // 退款失败（比如沙箱商户余额不足、订单状态异常等）
+                    log.error("❌ 支付宝退款受挫！原因: {} - {}", response.getSubCode(), response.getSubMsg());
+                    // 此时绝不能 ACK，必须抛出异常让消息重试，或者记录告警人工介入
+                    // DISCUSS 此处是否应该将订单状态回滚到 “PAID”？
+
+                    throw new BizException(BizCodeEnum.REFUND_INTERNAL_FAILED);
+                }
+
+
+            } finally {
+                // NOTE 必须释放锁
+                stringRedisTemplate.delete(RedisKey.REFUND_LOCK + message.getOrderId());
+            }
+
+            channel.basicAck(deliveryTag, false);
+            log.info("✅ 退款消息处理成功并 ACK, orderId: {}", message.getOrderId());
+
+        } catch (Exception e) {
+            log.error("❌ 退款消息处理发生异常, orderId: {}", message.getOrderId(), e);
+
+            // 发生异常，手动发送 NACK 拒绝消息
+            // 第三个参数 requeue = true 代表将消息重新塞回队列尾部，等待下一次重试
+            // (后续可以结合重试次数，把 requeue 改为 false，配合死信队列使用)
             channel.basicNack(deliveryTag, false, true);
         }
 

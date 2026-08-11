@@ -6,6 +6,8 @@ import org.apache.ibatis.annotations.Param;
 
 public interface SegmentInstanceMapper extends BaseMapper<SegmentInstance> {
 
-    int deductStockById(@Param("flight_id") Long flightId, @Param("num") Integer num);
+    int deductStockByFlightId(@Param("flight_id") Long flightId, @Param("num") Integer num);
+
+    int rollbackStockByFlightId(@Param("flight_id") Long flightId, @Param("num") Integer num);
 
 }

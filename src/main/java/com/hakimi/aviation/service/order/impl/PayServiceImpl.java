@@ -195,7 +195,7 @@ public class PayServiceImpl implements PayService {
 
         Long flightId = ticketOrder.getFlightId();
 
-        updateRows = segmentInstanceMapper.deductStockById(flightId,1);
+        updateRows = segmentInstanceMapper.deductStockByFlightId(flightId,1);
         //说明出现了极端竞争 必须抛出异常让事务回滚
         //NOTE 按理说这里不会被触发 但不影响
         if(updateRows == 0){

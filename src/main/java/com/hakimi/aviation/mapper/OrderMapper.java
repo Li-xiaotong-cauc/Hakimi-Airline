@@ -18,6 +18,8 @@ public interface OrderMapper extends BaseMapper<TicketOrder> {
 
     int updateStatusToRefunding(@Param("order_id") Long orderId,@Param("user_id") Long userId);
 
+    int updateStatusToRefunded(@Param("order_id") Long orderId,@Param("user_id") Long userId);
+
     String selectStatusByOrderId(@Param("order_id") Long orderId);
 
     Integer selectSeatOffsetById(@Param("order_id") Long orderId);
