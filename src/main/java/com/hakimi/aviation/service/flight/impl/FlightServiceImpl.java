@@ -21,6 +21,7 @@ import com.hakimi.aviation.model.vo.FlightSearchVO;
 import com.hakimi.aviation.model.vo.TicketOrderVO;
 import com.hakimi.aviation.service.admin.async.BookingAsyncService;
 import com.hakimi.aviation.service.flight.FlightService;
+import com.hakimi.aviation.util.SeatUtil;
 import com.hakimi.aviation.util.ValidateRequest;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.Resource;
@@ -510,29 +511,7 @@ public class FlightServiceImpl implements FlightService {
         ticketOrderVO.setIsFinished(ticketOrder.getIsFinished());
         ticketOrderVO.setCreatedAt(ticketOrder.getCreatedAt());
 
-        Integer seatRow = ticketOrder.getSeatOffset() / 6 + 1;
-        int flag = ticketOrder.getSeatOffset() % 6;
-
-        switch (flag){
-            case 0:
-                ticketOrderVO.setExactSeat(seatRow + "A");
-                break;
-            case 1:
-                ticketOrderVO.setExactSeat(seatRow + "B");
-                break;
-            case 2:
-                ticketOrderVO.setExactSeat(seatRow + "C");
-                break;
-            case 3:
-                ticketOrderVO.setExactSeat(seatRow + "D");
-                break;
-            case 4:
-                ticketOrderVO.setExactSeat(seatRow + "E");
-                break;
-            case 5:
-                ticketOrderVO.setExactSeat(seatRow + "F");
-                break;
-        }
+        ticketOrderVO.setExactSeat(SeatUtil.toSeatNo(ticketOrder.getSeatOffset()));
 
         return ticketOrderVO;
     }
