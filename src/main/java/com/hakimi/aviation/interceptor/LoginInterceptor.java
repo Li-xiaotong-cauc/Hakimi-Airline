@@ -96,7 +96,9 @@ public class LoginInterceptor implements HandlerInterceptor {
                     return false;
                 }
                 // 💡 查验通过！把 userId 郑重地塞进 request 里
-                Long id = (Long) claims.get("id");
+                // 注意：id 在 JWT 里是 JSON 数字，回程被反序列化成 Integer（小值），
+                // 不能直接 (Long) 强转，必须走 Number 数值转换，否则 ClassCastException。
+                Long id = ((Number) claims.get("id")).longValue();
                 String name = (String) claims.get("name");
                 String headImg = (String) claims.get("head_img");
                 request.setAttribute("user_id", id);
@@ -106,6 +108,7 @@ public class LoginInterceptor implements HandlerInterceptor {
                 return true; // 尊贵的登录用户，请进！
 
             } catch (Exception e) {
+                e.printStackTrace();
                 sendJsonMessage(response, JsonData.buildError("登录状态异常，请重新登录"));
                 return false;
             }
