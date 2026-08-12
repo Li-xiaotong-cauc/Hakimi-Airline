@@ -408,7 +408,7 @@ sequenceDiagram
 
 接口契约（全部端点、请求/响应字段、VO 结构、错误码、支付与 WebSocket 流程）以根目录 **[`APIs.md`](./APIs.md)** 为**唯一权威来源**。
 
-- **Base URL**：`http://<host>:8080`
+- **Base URL（本机联调）**：`http://127.0.0.1:8080/api/v1` —— baseURL 已含 `/api/v1`，调用时以 `/pri/...` 开头，勿重复拼前缀（详见 APIs.md §1）
 - **统一响应体**：`{ code, data, msg, timestamp }`，成功恒为 `code === 200`
 - **鉴权**：需登录接口在 Header 传 `token: hajimi....`（登录返回值原样放入）
 
