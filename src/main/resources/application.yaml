@@ -83,8 +83,8 @@ alipay:
   # ======================================
   # 两个回调地址
   # ======================================
-  # 同步跳转地址 前端开发还未完成 这里先随便填一个
-  return-url: "https://www.baidu.com"
+  # 同步跳转地址
+  return-url: "http://localhost:5173/order/detail"
   # 异步回调地址
   notify-url: "https://${CPOLAR_DOMAIN}/api/v1/pri/order/pay/callback"
 
