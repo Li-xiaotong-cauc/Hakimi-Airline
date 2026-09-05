@@ -230,7 +230,8 @@ public class OrderConsumer {
 
                 // 组装业务参数 (推荐使用 fastjson 或者 Jackson 的 ObjectNode)
                 JSONObject bizContent = new JSONObject();
-                bizContent.put("out_trade_no", message.getPayTradeNo());
+                //"out_trade_no"是商户自己的订单号，"trade_no"是支付宝支付后返回的流水号
+                bizContent.put("trade_no", message.getPayTradeNo());
                 bizContent.put("refund_amount", message.getRefundAmount().toString());
                 bizContent.put("out_request_no", message.getOutRequestNo());
                 // 可选：退款原因
@@ -286,10 +287,27 @@ public class OrderConsumer {
                     log.error("❌ 支付宝退款受挫！原因: {} - {}", response.getSubCode(), response.getSubMsg());
                     // 此时绝不能 ACK，必须抛出异常让消息重试，或者记录告警人工介入
                     // DISCUSS 此处是否应该将订单状态回滚到 “PAID”？
+                    if ("ACQ.TRADE_NOT_EXIST".equals(response.getSubCode()) ||
+                            "ACQ.SELLER_BALANCE_NOT_ENOUGH".equals(response.getSubCode()) ||
+                            "ACQ.REASON_TRADE_REFUND_FEE_ERR".equals(response.getSubCode())) {
 
-                    throw new BizException(BizCodeEnum.REFUND_INTERNAL_FAILED);
+                        log.warn("🚨 触发明确业务驳回，放弃退款。订单号: {}", message.getOrderId());
+
+                        // 状态机回拨：REFUNDING -> PAID
+                        // 必须把状态改回去，这样前端轮询接口查到不是 REFUNDING，就会停止轮询！
+                        // (需要在 OrderMapper 里加一个 updateStatusToPaid 方法)
+                        orderMapper.revertRefundingToPaid(message.getOrderId(), message.getUserId());
+
+                        // 直接 ACK，彻底销毁这条毒消息，不让它重试！
+                        channel.basicAck(deliveryTag, false);
+                        return;
+                    }
+                    else {
+                        // 4. 只有遇到真正的系统/网络异常（如支付宝系统繁忙、网络超时），才抛出异常等待重试
+                        throw new BizException(BizCodeEnum.REFUND_INTERNAL_FAILED);
+                    }
+
                 }
-
 
             } finally {
                 // NOTE 必须释放锁
