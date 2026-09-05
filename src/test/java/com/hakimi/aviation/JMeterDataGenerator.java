@@ -17,7 +17,7 @@ public class JMeterDataGenerator {
 
         try (FileWriter writer = new FileWriter(filePath)) {
             for (int i = 1; i <= totalUsers; i++) {
-                Integer mockUserId = 1000 + i;
+                Long mockUserId = (long) (1000 + i);
 
                 // 1. 临时捏造一个合法的 User 对象
                 User mockUser = new User();

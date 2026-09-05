@@ -1,6 +1,6 @@
 spring:
   elasticsearch:
-    uris: http://127.0.0.1:9200    # 连接本机的 ES ，服务器环境使用
+    uris: http://${ES_HOST:127.0.0.1}:9200    # 连接本机的 ES ，服务器环境使用
 
 # 支付宝沙箱配置
 alipay:
