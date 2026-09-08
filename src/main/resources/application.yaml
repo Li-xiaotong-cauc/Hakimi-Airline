@@ -5,12 +5,12 @@ spring:
   application:
     name: aviation-system
 
-  elasticsearch:
-    uris: http://127.0.0.1:19200    # 通过 SSH 将服务器 9200 端口与本机 19200 端口连接起来 防止网络代理对安全组策略的干扰
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:dev}
 
   datasource:
-    url: jdbc:mysql://127.0.0.1:3306/hajimi_aviation?useUnicode=true&characterEncoding=utf-8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
-    username: root
+    url: jdbc:mysql://${DB_HOST:127.0.0.1}:3306/hajimi_aviation?useUnicode=true&characterEncoding=utf-8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
+    username: ${DB_USERNAME:root}
     password: ${HAKIMI_DB_PWD}
     driver-class-name: com.mysql.cj.jdbc.Driver
 
@@ -19,7 +19,7 @@ spring:
 
   data:
     redis:
-      host: ${SERVER_IP}
+      host: ${SERVER_IP:127.0.0.1}
       port: 6379
       password: ${HAKIMI_REDIS_PWD}
       database: 1                   # 本系统使用一号库
@@ -37,7 +37,7 @@ spring:
           max-wait: 10000ms
 
   rabbitmq:
-    host: ${SERVER_IP}
+    host: ${SERVER_IP:127.0.0.1}
     port: 5672
     virtual-host: /hakimi_airline
     password: ${HAKIMI_RABBITMQ_PWD}
@@ -75,27 +75,7 @@ alipay:
   alipay-public-key: "${ALIPAY_PUBLIC_KEY}"
   # 签名方式 默认 RSA2
   sign-type: "RSA2"
-    # 字符集，固定为 UTF-8
+  # 字符集，固定为 UTF-8
   charset: "UTF-8"
   # 返回格式，固定为 json
   format: "json"
-
-  # ======================================
-  # 两个回调地址
-  # ======================================
-  # 同步跳转地址
-  return-url: "http://localhost:5173/order/detail"
-  # 异步回调地址
-  notify-url: "https://${CPOLAR_DOMAIN}/api/v1/pri/order/pay/callback"
-
-
-
-
-# MyBatis-Plus 配置
-mybatis-plus:
-  configuration:
-    # 开启驼峰命名自动映射 (数据库 flight_no -> Java flightNo)
-    map-underscore-to-camel-case: true
-    # 打印 SQL 日志
-    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
-

@@ -69,7 +69,7 @@ public class DevController {
      * @return 航班实例对象 仅作后台日志记录使用
      */
     @PostMapping("flight/new")
-    public Flight createNewFlight(CreateFlightRequest request){
+    public Flight createNewFlight(@RequestBody CreateFlightRequest request){
 
         Flight newFlight = handleFlightService.createNewFlight(request);
 
