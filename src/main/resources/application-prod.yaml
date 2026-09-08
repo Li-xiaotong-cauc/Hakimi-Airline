@@ -8,9 +8,9 @@ alipay:
   # 两个回调地址
   # ======================================
   # 同步跳转地址
-  return-url: "http://hakimicoding.online/order/detail"
+  return-url: "https://hakimicoding.online/order/detail"
   # 异步回调地址
-  notify-url: "http://hakimicoding.online/api/v1/pri/order/pay/callback"
+  notify-url: "https://hakimicoding.online/api/v1/pri/order/pay/callback"
 
 
 # MyBatis-Plus 配置
